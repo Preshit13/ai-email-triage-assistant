@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Email {
+  id               String           @id @default(cuid())
+  from             String
+  to               String
+  cc               String?
+  subject          String
+  date             DateTime
+  body             String
+  processingStatus ProcessingStatus @default(PENDING)
+  processingError  String?
+  createdAt        DateTime         @default(now())
+
+  toolCalls ToolCall[]
+}
+
+model ToolCall {
+  id            String      @id @default(cuid())
+  emailId       String
+  toolName      ToolName
+  rationale     String
+  argumentsJson Json
+  createdAt     DateTime    @default(now())
+
+  email      Email           @relation(fields: [emailId], references: [id])
+  execution  ToolExecution?
+}
+
+model ToolExecution {
+  id                  String   @id @default(cuid())
+  toolCallId          String   @unique
+  executionResultJson Json
+  executedAt          DateTime @default(now())
+
+  toolCall ToolCall @relation(fields: [toolCallId], references: [id])
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ToolName {
+  schedule_meeting
+  draft_response
+  escalate_to_manager
+  create_task
+  flag_urgent
+  archive_no_action
+}
