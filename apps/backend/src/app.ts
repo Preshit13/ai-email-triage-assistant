@@ -1,20 +1,19 @@
 import express from "express";
-import cors from "cors";
 
-import healthRoutes from "./routes/health.routes";
-import { notFoundMiddleware } from "./middleware/not-found.middleware";
-import { errorMiddleware } from "./middleware/error.middleware";
+import emailRoutes from "./routes/email.routes";
+import toolCallRoutes from "./routes/tool-call.routes";
 
 const app = express();
 
-app.use(cors());
-
 app.use(express.json());
 
-app.use("/api/health", healthRoutes);
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+  });
+});
 
-app.use(notFoundMiddleware);
-
-app.use(errorMiddleware);
+app.use("/emails", emailRoutes);
+app.use("/tool-calls", toolCallRoutes);
 
 export default app;
