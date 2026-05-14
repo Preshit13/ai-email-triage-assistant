@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { processPendingEmails } from "../apps/backend/src/services/triage.service";
 
 async function main() {

@@ -1,41 +1,63 @@
-import { PrismaClient, ToolName } from "@prisma/client";
+import prisma from "../config/prisma";
+import { ProcessingStatus, ToolName } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { classifyEmail } from "./groq.service";
 
-function determineTool(emailText: string): ToolName {
-  const content = emailText.toLowerCase();
+export async function triageEmail(emailId: string) {
+  const email = await prisma.email.findUnique({
+    where: {
+      id: emailId,
+    },
+  });
 
-  if (
-    content.includes("meeting") ||
-    content.includes("schedule") ||
-    content.includes("calendar")
-  ) {
-    return "schedule_meeting";
+  if (!email) {
+    throw new Error("Email not found");
   }
 
-  if (
-    content.includes("urgent") ||
-    content.includes("asap") ||
-    content.includes("immediately")
-  ) {
-    return "flag_urgent";
+  const result = await classifyEmail(email.subject, email.body);
+
+  const validTools: ToolName[] = [
+    "schedule_meeting",
+    "draft_response",
+    "escalate_to_manager",
+    "create_task",
+    "flag_urgent",
+    "archive_no_action",
+  ];
+
+  if (!validTools.includes(result.toolName)) {
+    throw new Error(`Invalid tool returned: ${result.toolName}`);
   }
 
-  if (content.includes("reply") || content.includes("respond")) {
-    return "draft_response";
-  }
+  const toolName = result.toolName as ToolName;
 
-  if (content.includes("task") || content.includes("follow up")) {
-    return "create_task";
-  }
+  await prisma.toolCall.create({
+    data: {
+      emailId: email.id,
+      toolName,
+      rationale: result.rationale,
+      argumentsJson: {
+        subject: email.subject,
+      },
+    },
+  });
 
-  return "archive_no_action";
+  await prisma.email.update({
+    where: {
+      id: email.id,
+    },
+    data: {
+      processingStatus: ProcessingStatus.COMPLETED,
+    },
+  });
+
+  console.log(`AI selected ${toolName} for email: ${email.subject}`);
 }
 
 export async function processPendingEmails() {
   const pendingEmails = await prisma.email.findMany({
     where: {
-      processingStatus: "PENDING",
+      processingStatus: ProcessingStatus.PENDING,
     },
   });
 
@@ -43,42 +65,29 @@ export async function processPendingEmails() {
 
   for (const email of pendingEmails) {
     try {
-      const tool = determineTool(`${email.subject} ${email.body}`);
-
-      await prisma.toolCall.create({
-        data: {
-          emailId: email.id,
-          toolName: tool,
-          rationale: `Rule-based triage selected ${tool}`,
-          argumentsJson: {
-            subject: email.subject,
-          },
-        },
-      });
-
       await prisma.email.update({
         where: {
           id: email.id,
         },
         data: {
-          processingStatus: "COMPLETED",
+          processingStatus: ProcessingStatus.PROCESSING,
         },
       });
 
-      console.log(`Processed email: ${email.subject}`);
+      await triageEmail(email.id);
     } catch (error) {
+      console.error(`Failed processing email ${email.id}`, error);
+
       await prisma.email.update({
         where: {
           id: email.id,
         },
         data: {
-          processingStatus: "FAILED",
+          processingStatus: ProcessingStatus.FAILED,
           processingError:
             error instanceof Error ? error.message : "Unknown error",
         },
       });
-
-      console.error(`Failed processing email: ${email.subject}`);
     }
   }
 }
