@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { fetchEmails, processEmails, executeTools } from "../api/emailApi";
+import {
+  fetchEmails,
+  processEmails,
+  executeTools,
+  executeSingleTool,
+} from "../api/emailApi";
 
-type Email = {
-  id: string;
-  from: string;
-  subject: string;
-  body: string;
-  processingStatus: string;
-  processingError?: string | null;
-};
+import type { Email } from "../api/emailApi";
 
 function InboxPage() {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -22,6 +20,12 @@ function InboxPage() {
 
   const [executingTools, setExecutingTools] = useState(false);
 
+  const [executingToolId, setExecutingToolId] = useState<string | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [selectedToolFilter, setSelectedToolFilter] = useState("ALL");
+
   async function handleProcessEmails() {
     try {
       setProcessingEmails(true);
@@ -31,6 +35,14 @@ function InboxPage() {
       const updatedEmails = await fetchEmails();
 
       setEmails(updatedEmails.data);
+
+      if (selectedEmail) {
+        const refreshedSelectedEmail = updatedEmails.data.find(
+          (email) => email.id === selectedEmail.id,
+        );
+
+        setSelectedEmail(refreshedSelectedEmail || null);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -47,10 +59,42 @@ function InboxPage() {
       const updatedEmails = await fetchEmails();
 
       setEmails(updatedEmails.data);
+
+      if (selectedEmail) {
+        const refreshedSelectedEmail = updatedEmails.data.find(
+          (email) => email.id === selectedEmail.id,
+        );
+
+        setSelectedEmail(refreshedSelectedEmail || null);
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setExecutingTools(false);
+    }
+  }
+
+  async function handleExecuteSingleTool(toolCallId: string) {
+    try {
+      setExecutingToolId(toolCallId);
+
+      await executeSingleTool(toolCallId);
+
+      const updatedEmails = await fetchEmails();
+
+      setEmails(updatedEmails.data);
+
+      if (selectedEmail) {
+        const refreshedSelectedEmail = updatedEmails.data.find(
+          (email) => email.id === selectedEmail.id,
+        );
+
+        setSelectedEmail(refreshedSelectedEmail || null);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setExecutingToolId(null);
     }
   }
 
@@ -69,6 +113,28 @@ function InboxPage() {
 
     loadEmails();
   }, []);
+
+  const availableTools = Array.from(
+    new Set(
+      emails.flatMap((email) =>
+        email.toolCalls.map((toolCall) => toolCall.toolName),
+      ),
+    ),
+  );
+
+  const filteredEmails = emails.filter((email) => {
+    const matchesSearch =
+      email.from.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.subject.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesTool =
+      selectedToolFilter === "ALL" ||
+      email.toolCalls.some(
+        (toolCall) => toolCall.toolName === selectedToolFilter,
+      );
+
+    return matchesSearch && matchesTool;
+  });
 
   if (loading) {
     return <h1>Loading emails...</h1>;
@@ -101,6 +167,30 @@ function InboxPage() {
           </div>
         </div>
 
+        <div className="flex gap-4 mb-6">
+          <input
+            type="text"
+            placeholder="Search sender or subject..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500"
+          />
+
+          <select
+            value={selectedToolFilter}
+            onChange={(event) => setSelectedToolFilter(event.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500"
+          >
+            <option value="ALL">All Tools</option>
+
+            {availableTools.map((toolName) => (
+              <option key={toolName} value={toolName}>
+                {toolName}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl">
           <table className="w-full">
             <thead className="bg-zinc-800 text-zinc-300">
@@ -114,7 +204,7 @@ function InboxPage() {
             </thead>
 
             <tbody>
-              {emails.map((email) => (
+              {filteredEmails.map((email) => (
                 <tr
                   key={email.id}
                   onClick={() => setSelectedEmail(email)}
@@ -122,7 +212,22 @@ function InboxPage() {
                 >
                   <td className="px-6 py-4 text-zinc-300">{email.from}</td>
 
-                  <td className="px-6 py-4">{email.subject}</td>
+                  <td className="px-6 py-4">
+                    <p>{email.subject}</p>
+
+                    {email.toolCalls.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {email.toolCalls.map((toolCall) => (
+                          <span
+                            key={toolCall.id}
+                            className="bg-zinc-800 border border-zinc-700 px-2 py-1 rounded-full text-xs text-zinc-300"
+                          >
+                            {toolCall.toolName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
 
                   <td className="px-6 py-4">
                     <span
@@ -169,19 +274,19 @@ function InboxPage() {
               ×
             </button>
 
-            <h2 className="text-3xl font-bold mb-8">Email Details</h2>
+            <h2 className="text-2xl font-bold mb-8">Email Details</h2>
 
             <div className="space-y-6">
               <div>
                 <p className="text-zinc-400 mb-2">From</p>
 
-                <p className="text-xl font-semibold">{selectedEmail.from}</p>
+                <p className="font-semibold">{selectedEmail.from}</p>
               </div>
 
               <div>
                 <p className="text-zinc-400 mb-2">Subject</p>
 
-                <p className="text-xl font-semibold">{selectedEmail.subject}</p>
+                <p className="font-semibold">{selectedEmail.subject}</p>
               </div>
 
               <div>
@@ -193,10 +298,85 @@ function InboxPage() {
               <div>
                 <p className="text-zinc-400 mb-4">Email Body</p>
 
-                <div className="bg-zinc-800 p-6 rounded-2xl leading-8 text-zinc-300 whitespace-pre-wrap">
+                <div className="bg-zinc-800 p-6 rounded-2xl leading-7 text-zinc-300 whitespace-pre-wrap">
                   {selectedEmail.body}
                 </div>
               </div>
+
+              {selectedEmail.toolCalls.length > 0 && (
+                <div>
+                  <p className="text-zinc-400 mb-4 font-semibold">
+                    AI Suggested Actions
+                  </p>
+
+                  <div className="space-y-4">
+                    {selectedEmail.toolCalls.map((toolCall) => (
+                      <div
+                        key={toolCall.id}
+                        className="bg-zinc-800 border border-zinc-700 rounded-2xl p-5"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                            {toolCall.toolName}
+                          </span>
+
+                          {toolCall.execution ? (
+                            <span className="text-green-400 text-sm font-semibold">
+                              Executed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+
+                                handleExecuteSingleTool(toolCall.id);
+                              }}
+                              disabled={executingToolId === toolCall.id}
+                              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-900 disabled:cursor-not-allowed px-3 py-1 rounded-lg text-sm font-semibold transition"
+                            >
+                              {executingToolId === toolCall.id
+                                ? "Executing..."
+                                : "Execute Tool"}
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="mb-5">
+                          <p className="text-zinc-400 mb-2">Rationale</p>
+
+                          <p className="text-zinc-200 leading-7">
+                            {toolCall.rationale}
+                          </p>
+                        </div>
+
+                        <div className="mb-5">
+                          <p className="text-zinc-400 mb-2">Arguments</p>
+
+                          <pre className="bg-zinc-950 p-4 rounded-xl text-sm overflow-x-auto text-zinc-300">
+                            {JSON.stringify(toolCall.argumentsJson, null, 2)}
+                          </pre>
+                        </div>
+
+                        {toolCall.execution && (
+                          <div>
+                            <p className="text-zinc-400 mb-2">
+                              Execution Result
+                            </p>
+
+                            <pre className="bg-zinc-950 p-4 rounded-xl text-sm overflow-x-auto text-zinc-300">
+                              {JSON.stringify(
+                                toolCall.execution.executionResultJson,
+                                null,
+                                2,
+                              )}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {selectedEmail.processingError && (
                 <div>

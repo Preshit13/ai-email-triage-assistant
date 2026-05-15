@@ -36,6 +36,35 @@ function simulateExecution(toolName: string) {
   }
 }
 
+export async function executeSingleToolCall(toolCallId: string) {
+  const toolCall = await prisma.toolCall.findUnique({
+    where: {
+      id: toolCallId,
+    },
+
+    include: {
+      execution: true,
+    },
+  });
+
+  if (!toolCall) {
+    throw new Error("Tool call not found");
+  }
+
+  if (toolCall.execution) {
+    return toolCall.execution;
+  }
+
+  const result = simulateExecution(toolCall.toolName);
+
+  return prisma.toolExecution.create({
+    data: {
+      toolCallId: toolCall.id,
+      executionResultJson: result,
+    },
+  });
+}
+
 export async function executePendingToolCalls() {
   const toolCalls = await prisma.toolCall.findMany({
     where: {

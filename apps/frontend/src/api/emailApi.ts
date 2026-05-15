@@ -1,4 +1,35 @@
-export async function fetchEmails() {
+export interface ToolExecution {
+  id: string;
+  executionResultJson: Record<string, unknown>;
+  executedAt: string;
+}
+
+export interface ToolCall {
+  id: string;
+  toolName: string;
+  rationale: string;
+  argumentsJson: Record<string, unknown>;
+  execution?: ToolExecution | null;
+}
+
+export interface Email {
+  id: string;
+  from: string;
+  to: string;
+  cc?: string | null;
+  subject: string;
+  body: string;
+  date: string;
+  processingStatus: string;
+  processingError?: string | null;
+  toolCalls: ToolCall[];
+}
+
+export async function fetchEmails(): Promise<{
+  success: boolean;
+  count: number;
+  data: Email[];
+}> {
   const response = await fetch("http://localhost:4000/emails");
 
   if (!response.ok) {
@@ -27,6 +58,21 @@ export async function executeTools() {
 
   if (!response.ok) {
     throw new Error("Failed executing tools");
+  }
+
+  return response.json();
+}
+
+export async function executeSingleTool(toolCallId: string) {
+  const response = await fetch(
+    `http://localhost:4000/tool-calls/${toolCallId}/execute`,
+    {
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed executing tool");
   }
 
   return response.json();

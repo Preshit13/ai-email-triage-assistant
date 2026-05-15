@@ -1,16 +1,36 @@
 import { useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import { uploadCsv } from "../api/emailApi";
 
 function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const [uploading, setUploading] = useState(false);
+
+  const [uploadError, setUploadError] = useState("");
+
+  const [missingColumns, setMissingColumns] = useState<string[]>([]);
+
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  const [insertedCount, setInsertedCount] = useState(0);
+
   const navigate = useNavigate();
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
+
+    setUploadError("");
+
+    setMissingColumns([]);
+
+    setUploadSuccess(false);
+
+    setInsertedCount(0);
 
     setSelectedFile(file);
   }
@@ -21,13 +41,33 @@ function UploadPage() {
     try {
       setUploading(true);
 
-      await uploadCsv(selectedFile);
+      setUploadError("");
 
-      navigate("/inbox");
+      setMissingColumns([]);
+
+      const response = await uploadCsv(selectedFile);
+
+      setUploadSuccess(true);
+
+      setInsertedCount(response.insertedCount);
     } catch (error) {
       console.error(error);
 
-      alert("Upload failed");
+      if (error instanceof Error) {
+        setUploadError(error.message);
+      }
+
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "missingColumns" in error
+      ) {
+        setMissingColumns(
+          (error as { missingColumns: string[] }).missingColumns,
+        );
+      } else {
+        setUploadError("Upload failed");
+      }
     } finally {
       setUploading(false);
     }
@@ -66,13 +106,52 @@ function UploadPage() {
           </div>
         )}
 
-        <button
-          onClick={handleContinue}
-          disabled={!selectedFile}
-          className="mt-8 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed py-4 rounded-2xl font-bold text-lg transition"
-        >
-          {uploading ? "Uploading..." : "Continue To Inbox"}
-        </button>
+        {uploadError && (
+          <div className="mt-6 bg-red-500/10 border border-red-500/20 rounded-2xl p-5">
+            <p className="text-red-400 font-semibold mb-2">{uploadError}</p>
+
+            {missingColumns.length > 0 && (
+              <div>
+                <p className="text-zinc-300 mb-2">Missing Columns:</p>
+
+                <ul className="list-disc list-inside text-zinc-400 space-y-1">
+                  {missingColumns.map((column) => (
+                    <li key={column}>{column}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {uploadSuccess && (
+          <div className="mt-6 bg-green-500/10 border border-green-500/20 rounded-2xl p-5">
+            <p className="text-green-400 font-semibold mb-2">
+              Upload Successful
+            </p>
+
+            <p className="text-zinc-300">
+              Successfully uploaded {insertedCount} emails.
+            </p>
+          </div>
+        )}
+
+        {!uploadSuccess ? (
+          <button
+            onClick={handleContinue}
+            disabled={!selectedFile || uploading}
+            className="mt-8 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed py-4 rounded-2xl font-bold text-lg transition"
+          >
+            {uploading ? "Uploading..." : "Upload CSV"}
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate("/inbox")}
+            className="mt-8 w-full bg-emerald-600 hover:bg-emerald-700 py-4 rounded-2xl font-bold text-lg transition"
+          >
+            Continue To Inbox
+          </button>
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,14 @@ export async function getEmails(req: Request, res: Response) {
       orderBy: {
         createdAt: "desc",
       },
+
+      include: {
+        toolCalls: {
+          include: {
+            execution: true,
+          },
+        },
+      },
     });
 
     return res.status(200).json({
