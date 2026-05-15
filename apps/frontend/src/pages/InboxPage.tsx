@@ -13,13 +13,18 @@ type Email = {
 
 function InboxPage() {
   const [emails, setEmails] = useState<Email[]>([]);
+
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+
+  const [processingEmails, setProcessingEmails] = useState(false);
+
+  const [executingTools, setExecutingTools] = useState(false);
 
   async function handleProcessEmails() {
     try {
-      setActionLoading(true);
+      setProcessingEmails(true);
 
       await processEmails();
 
@@ -29,13 +34,13 @@ function InboxPage() {
     } catch (error) {
       console.error(error);
     } finally {
-      setActionLoading(false);
+      setProcessingEmails(false);
     }
   }
 
   async function handleExecuteTools() {
     try {
-      setActionLoading(true);
+      setExecutingTools(true);
 
       await executeTools();
 
@@ -45,7 +50,7 @@ function InboxPage() {
     } catch (error) {
       console.error(error);
     } finally {
-      setActionLoading(false);
+      setExecutingTools(false);
     }
   }
 
@@ -80,18 +85,18 @@ function InboxPage() {
           <div className="flex gap-4">
             <button
               onClick={handleProcessEmails}
-              disabled={actionLoading}
-              className="bg-blue-600 hover:bg-blue-700 px-5 py-3 rounded-xl font-semibold transition"
+              disabled={processingEmails}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900 disabled:cursor-not-allowed px-5 py-3 rounded-xl font-semibold transition"
             >
-              {actionLoading ? "Processing..." : "Process Emails"}
+              {processingEmails ? "Processing..." : "Process Emails"}
             </button>
 
             <button
               onClick={handleExecuteTools}
-              disabled={actionLoading}
-              className="bg-emerald-600 hover:bg-emerald-700 px-5 py-3 rounded-xl font-semibold transition"
+              disabled={executingTools}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-900 disabled:cursor-not-allowed px-5 py-3 rounded-xl font-semibold transition"
             >
-              {actionLoading ? "Executing..." : "Execute Tools"}
+              {executingTools ? "Executing..." : "Execute Tools"}
             </button>
           </div>
         </div>
@@ -152,66 +157,60 @@ function InboxPage() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {selectedEmail && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 overflow-y-auto z-50">
-            <div className="bg-zinc-900 p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-bold">Email Details</h2>
+      {selectedEmail && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 overflow-y-auto z-50">
+          <div className="bg-zinc-900 p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => setSelectedEmail(null)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white text-3xl"
+            >
+              ×
+            </button>
 
-                <button
-                  onClick={() => setSelectedEmail(null)}
-                  className="text-zinc-400 hover:text-white text-2xl"
-                >
-                  ✕
-                </button>
+            <h2 className="text-3xl font-bold mb-8">Email Details</h2>
+
+            <div className="space-y-6">
+              <div>
+                <p className="text-zinc-400 mb-2">From</p>
+
+                <p className="text-xl font-semibold">{selectedEmail.from}</p>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <p className="text-zinc-400 text-sm mb-1">From</p>
+              <div>
+                <p className="text-zinc-400 mb-2">Subject</p>
 
-                  <p className="text-lg">{selectedEmail.from}</p>
-                </div>
-
-                <div>
-                  <p className="text-zinc-400 text-sm mb-1">Subject</p>
-
-                  <p className="text-lg font-semibold">
-                    {selectedEmail.subject}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-zinc-400 text-sm mb-1">Status</p>
-
-                  <p>{selectedEmail.processingStatus}</p>
-                </div>
-
-                <div>
-                  <p className="text-zinc-400 text-sm mb-2">Email Body</p>
-
-                  <div className="bg-zinc-800 p-5 rounded-xl max-h-80 overflow-y-auto text-sm leading-7 text-zinc-300">
-                    {selectedEmail.body}
-                  </div>
-                </div>
-
-                {selectedEmail.processingError && (
-                  <div>
-                    <p className="text-red-400 text-sm mb-2">
-                      Processing Error
-                    </p>
-
-                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-sm text-red-300">
-                      {selectedEmail.processingError}
-                    </div>
-                  </div>
-                )}
+                <p className="text-xl font-semibold">{selectedEmail.subject}</p>
               </div>
+
+              <div>
+                <p className="text-zinc-400 mb-2">Status</p>
+
+                <p>{selectedEmail.processingStatus}</p>
+              </div>
+
+              <div>
+                <p className="text-zinc-400 mb-4">Email Body</p>
+
+                <div className="bg-zinc-800 p-6 rounded-2xl leading-8 text-zinc-300 whitespace-pre-wrap">
+                  {selectedEmail.body}
+                </div>
+              </div>
+
+              {selectedEmail.processingError && (
+                <div>
+                  <p className="text-red-400 mb-3">Processing Error</p>
+
+                  <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl text-red-300 overflow-x-auto">
+                    {selectedEmail.processingError}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
