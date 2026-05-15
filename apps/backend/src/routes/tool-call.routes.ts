@@ -1,9 +1,14 @@
 import { Router } from "express";
 
-import { getToolCalls } from "../controllers/tool-call.controller";
+import {
+  getToolCalls,
+  executeTools,
+} from "../controllers/tool-call.controller";
 
 const router = Router();
 
 router.get("/", getToolCalls);
+
+router.post("/execute", executeTools);
 
 export default router;
