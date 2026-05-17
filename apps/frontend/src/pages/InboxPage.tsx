@@ -152,7 +152,9 @@ function InboxPage() {
 
   useEffect(() => {
     const hasProcessingEmails = emails.some(
-      (email) => email.processingStatus === "PROCESSING",
+      (email) =>
+        email.processingStatus === "PROCESSING" ||
+        email.processingStatus === "PENDING",
     );
 
     if (!hasProcessingEmails) return;
