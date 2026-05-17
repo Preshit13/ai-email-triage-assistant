@@ -125,8 +125,8 @@ function UploadPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 w-full max-w-2xl shadow-2xl">
-        <h1 className="text-5xl font-bold mb-4 text-blue-400">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-10 w-full max-w-2xl shadow-2xl">
+        <h1 className="text-3xl md:text-5xl font-bold mb-4 text-blue-400">
           Upload Emails CSV
         </h1>
 

@@ -489,7 +489,7 @@ function InboxPage() {
             onClick={() => setSelectedEmail(null)}
           >
             <div
-              className="bg-zinc-900 p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative"
+              className="bg-zinc-900 p-5 md:p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative my-4"
               onClick={(event) => event.stopPropagation()}
             >
               <button
