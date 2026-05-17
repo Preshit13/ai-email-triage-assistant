@@ -66,6 +66,7 @@ The system is designed to simulate how modern AI agent systems coordinate decisi
 - CSV schema validation
 - Missing-column validation
 - Upload success/error feedback
+- Re-upload support — uploading a new CSV replaces the entire existing dataset. All previous emails, tool calls, and execution results are cleared before the new CSV is ingested.
 
 Required CSV columns:
 
@@ -323,8 +324,10 @@ apps/
 │   └── .env.example
 │
 data/
-├── raw-enron/
 └── sample_emails.csv
+
+scripts/
+└── generate-sample-dataset.ts
 ```
 
 ---
@@ -390,7 +393,7 @@ POST /upload-csv
 ## 1. Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Preshit13/ai-email-triage-assistant
 ```
 
 ---
@@ -485,7 +488,7 @@ http://localhost:5173
 
 ## 1. Upload CSV
 
-Upload an email dataset CSV file.
+Upload an email dataset CSV file. Any previously uploaded dataset will be cleared and replaced with the new one.
 
 ---
 
@@ -524,6 +527,12 @@ Execution results are persisted in the database.
 
 # Assumptions and Design Decisions
 
+## Re-upload Behavior
+
+Uploading a new CSV replaces the entire existing dataset. All previous emails, tool calls, and execution results are deleted before the new dataset is ingested. This ensures a clean, predictable state on every upload.
+
+---
+
 ## Mocked Tool Execution
 
 Tool execution is intentionally mocked to simulate enterprise orchestration behavior.
@@ -559,6 +568,12 @@ This simulates human-in-the-loop orchestration systems commonly used in enterpri
 
 ---
 
+## Single-User Architecture
+
+The current implementation uses a shared SQLite database with no authentication. It is designed as a single-user demo application. In production this would be replaced with PostgreSQL, user authentication, and per-user data scoping.
+
+---
+
 # Rate Limit Handling
 
 The application includes graceful handling for Groq API rate-limit failures.
@@ -583,14 +598,16 @@ This simulates resilient orchestration behavior commonly required in production 
 
 Potential production enhancements:
 
-- Authentication
-- Role-based access control
+- Authentication and role-based access control
+- Per-user data scoping and session management
+- PostgreSQL for production-scale persistence
 - Real email provider integrations
-- Background job queues
-- WebSocket real-time sync
-- Real calendar/task integrations
+- Background job queues with BullMQ and Redis
+- WebSocket real-time sync instead of polling
+- Real calendar and task integrations
 - AI confidence scoring
 - Multi-user collaboration
+- OpenTelemetry observability
 
 ---
 

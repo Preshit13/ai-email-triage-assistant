@@ -38,6 +38,10 @@ export async function ingestCsv(filePath: string) {
       })
       .on("end", async () => {
         try {
+          await prisma.toolExecution.deleteMany({});
+          await prisma.toolCall.deleteMany({});
+          await prisma.email.deleteMany({});
+
           for (const email of emails) {
             await prisma.email.create({
               data: {
