@@ -4,10 +4,10 @@ import { simpleParser } from "mailparser";
 import { createObjectCsvWriter } from "csv-writer";
 
 const ROOT_DIR = path.join(process.cwd(), "data", "raw-enron", "maildir");
-
 const OUTPUT_CSV = path.join(process.cwd(), "data", "sample_emails.csv");
 
 type ParsedEmail = {
+  id: number;
   from: string;
   to: string;
   cc: string;
@@ -26,11 +26,9 @@ async function walkDirectory(directory: string): Promise<string[]> {
   const files = await Promise.all(
     entries.map(async (entry: fs.Dirent) => {
       const fullPath = path.join(directory, entry.name);
-
       if (entry.isDirectory()) {
         return await walkDirectory(fullPath);
       }
-
       return [fullPath];
     }),
   );
@@ -46,7 +44,7 @@ function cleanText(text: string): string {
     .trim();
 }
 
-function isUsefulEmail(email: ParsedEmail): boolean {
+function isUsefulEmail(email: Omit<ParsedEmail, "id">): boolean {
   const combined = `${email.subject} ${email.body}`.toLowerCase();
 
   const keywords = [
@@ -75,10 +73,9 @@ async function main() {
 
     try {
       const rawEmail = fs.readFileSync(filePath);
-
       const parsed = await simpleParser(rawEmail);
 
-      const email: ParsedEmail = {
+      const emailData = {
         from: parsed.from?.text || "",
         to: (parsed.to as any)?.text || "",
         cc: (parsed.cc as any)?.text || "",
@@ -87,8 +84,8 @@ async function main() {
         body: cleanText(parsed.text || ""),
       };
 
-      if (email.subject && email.body && isUsefulEmail(email)) {
-        emails.push(email);
+      if (emailData.subject && emailData.body && isUsefulEmail(emailData)) {
+        emails.push({ id: emails.length + 1, ...emailData });
       }
     } catch (error) {
       console.error(`Failed parsing ${filePath}`);
@@ -98,6 +95,7 @@ async function main() {
   const csvWriter = createObjectCsvWriter({
     path: OUTPUT_CSV,
     header: [
+      { id: "id", title: "id" },
       { id: "from", title: "from" },
       { id: "to", title: "to" },
       { id: "cc", title: "cc" },

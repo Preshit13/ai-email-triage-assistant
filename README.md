@@ -35,6 +35,7 @@ The system is designed to simulate how modern AI agent systems coordinate decisi
 
 - React
 - TypeScript
+- Vite
 - Tailwind CSS
 - React Router
 - Fetch API
@@ -69,7 +70,7 @@ The system is designed to simulate how modern AI agent systems coordinate decisi
 Required CSV columns:
 
 ```csv
-from,to,cc,subject,body,date
+id,from,to,cc,subject,date,body
 ```
 
 ---
@@ -96,6 +97,51 @@ Supported tools:
 - create_task
 - flag_urgent
 - archive_no_action
+
+---
+
+## AI Prompting Strategy
+
+The orchestration pipeline uses structured prompting to ensure deterministic JSON outputs from the LLM.
+
+Core prompt responsibilities:
+
+- analyze urgency
+- determine operational intent
+- generate one or more tool calls
+- provide rationale
+- return structured JSON only
+
+Example orchestration prompt:
+
+```text
+You are an AI email triage assistant.
+
+Analyze the email carefully and decide which tools should be used.
+
+You may return MULTIPLE tools if needed.
+
+Available actions:
+- schedule_meeting
+- draft_response
+- escalate_to_manager
+- create_task
+- flag_urgent
+- archive_no_action
+
+Return ONLY valid JSON.
+```
+
+Email context sent to the model:
+
+```text
+Email Details:
+From: {from}
+Subject: {subject}
+Body: {truncated_body}
+```
+
+The email body is truncated to 4000 characters before being sent to the LLM to reduce token usage and improve orchestration reliability.
 
 ---
 
@@ -274,6 +320,7 @@ apps/
 │   │   ├── api/
 │   │   ├── pages/
 │   │   └── components/
+│   └── .env.example
 │
 data/
 ├── raw-enron/
@@ -382,6 +429,16 @@ DATABASE_URL="file:./dev.db"
 GROQ_API_KEY="your_groq_api_key_here"
 
 PORT=4000
+```
+
+Create:
+
+```text
+apps/frontend/.env
+```
+
+```env
+VITE_API_BASE_URL=http://localhost:4000
 ```
 
 ---

@@ -3,7 +3,7 @@ import csv from "csv-parser";
 
 import prisma from "../config/prisma";
 
-const REQUIRED_COLUMNS = ["from", "to", "subject", "body", "date"];
+const REQUIRED_COLUMNS = ["id", "from", "to", "cc", "subject", "date", "body"];
 
 export async function ingestCsv(filePath: string) {
   return new Promise<{
