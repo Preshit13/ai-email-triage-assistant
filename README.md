@@ -14,6 +14,7 @@ The application demonstrates:
 - CSV ingestion and validation
 - Retryable orchestration pipelines
 - Search and filtering capabilities
+- Pagination, orchestration monitoring, and operational metrics
 - Full-stack TypeScript architecture
 
 The system is designed to simulate how modern AI agent systems coordinate decision-making and operational workflows inside enterprise email systems.
@@ -117,6 +118,8 @@ This simulates real-world AI orchestration workflows where multiple actions may 
 
 Users can:
 
+- Process emails individually
+- Process emails in bulk
 - Execute all pending tools
 - Execute individual tools selectively
 - Review AI rationale before execution
@@ -151,8 +154,41 @@ Users can:
 - Search emails by sender
 - Search emails by subject
 - Filter emails by AI-suggested tool
+- Use paginated inbox navigation for large datasets
 
 Tool filters are generated dynamically based on orchestration output.
+
+---
+
+## Orchestration Monitoring
+
+The dashboard includes live orchestration metrics:
+
+- total emails
+- completed emails
+- pending emails
+- processing emails
+- failed emails
+- executed actions
+- executed emails
+
+The frontend automatically refreshes orchestration state during active processing.
+
+---
+
+## Batch Email Processing
+
+The orchestration pipeline processes emails in configurable batches to improve scalability and simulate production-style orchestration systems.
+
+Features:
+
+- Configurable batch size
+- Parallel orchestration processing
+- Controlled concurrency
+- Reduced LLM rate-limit pressure
+- Improved large-dataset handling
+
+This allows the platform to process large CSV datasets more efficiently while maintaining orchestration reliability.
 
 ---
 
@@ -230,6 +266,10 @@ apps/
 │   │   ├── api/
 │   │   ├── pages/
 │   │   └── components/
+│
+data/
+├── raw-enron/
+└── sample_emails.csv
 ```
 
 ---
@@ -248,6 +288,12 @@ GET /emails
 
 ```http
 POST /emails/process
+```
+
+### Process Single Email
+
+```http
+POST /emails/:id/process
 ```
 
 ### Retry Failed Email
@@ -448,6 +494,26 @@ This simulates human-in-the-loop orchestration systems commonly used in enterpri
 
 ---
 
+# Rate Limit Handling
+
+The application includes graceful handling for Groq API rate-limit failures.
+
+If API quota limits are exceeded:
+
+- emails are marked as FAILED
+- user-friendly error messages are displayed
+- failed emails may be retried later
+
+Example:
+
+```text
+Groq API rate limit reached. Please retry later.
+```
+
+This simulates resilient orchestration behavior commonly required in production AI systems.
+
+---
+
 # Future Improvements
 
 Potential production enhancements:
@@ -456,26 +522,72 @@ Potential production enhancements:
 - Role-based access control
 - Real email provider integrations
 - Background job queues
-- Streaming orchestration updates
 - WebSocket real-time sync
 - Real calendar/task integrations
-- Rate limiting
 - AI confidence scoring
-- Pagination and virtualized tables
 - Multi-user collaboration
 
 ---
 
 # Screenshots
 
-Add screenshots here before submission:
+## Drag and Drop Upload
 
-- Upload page
-- Inbox dashboard
-- AI tool suggestions
-- Tool execution results
-- Filtering/search
-- Failed processing retry flow
+![Drag and Drop Upload](./screenshots/drag-drop-upload.png)
+
+---
+
+## Upload Page
+
+![Upload Page](./screenshots/upload-page.png)
+
+---
+
+## Upload Success
+
+![Upload Success](./screenshots/upload-success.png)
+
+---
+
+## Upload Validation Error
+
+![Upload Validation Error](./screenshots/upload-validation-error.png)
+
+---
+
+## Inbox Dashboard
+
+![Inbox Dashboard](./screenshots/inbox-dashboard.png)
+
+---
+
+## Search and Filtering
+
+![Search and Filtering](./screenshots/search-filter.png)
+
+---
+
+## Email Details Modal
+
+![Email Details](./screenshots/email-details-modal.png)
+
+---
+
+## Multi-Tool Suggestions
+
+![Multi Tool Suggestions](./screenshots/multi-tool-suggestions.png)
+
+---
+
+## Tool Execution Result
+
+![Tool Execution Result](./screenshots/tool-execution-result.png)
+
+---
+
+## Failed Processing Retry
+
+![Failed Processing Retry](./screenshots/failed-email-retry.png)
 
 ---
 

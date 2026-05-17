@@ -4,6 +4,8 @@ import { ProcessingStatus, ToolName } from "@prisma/client";
 
 import { classifyEmail } from "./groq.service";
 
+const BATCH_SIZE = 5;
+
 export async function triageEmail(emailId: string) {
   const email = await prisma.email.findUnique({
     where: {
@@ -59,8 +61,37 @@ export async function triageEmail(emailId: string) {
     },
     data: {
       processingStatus: ProcessingStatus.COMPLETED,
+      processingError: null,
     },
   });
+}
+
+async function processSingleEmail(emailId: string) {
+  try {
+    await prisma.email.update({
+      where: {
+        id: emailId,
+      },
+      data: {
+        processingStatus: ProcessingStatus.PROCESSING,
+      },
+    });
+
+    await triageEmail(emailId);
+  } catch (error) {
+    console.error(`Failed processing email ${emailId}`, error);
+
+    await prisma.email.update({
+      where: {
+        id: emailId,
+      },
+      data: {
+        processingStatus: ProcessingStatus.FAILED,
+        processingError:
+          error instanceof Error ? error.message : "Unknown error",
+      },
+    });
+  }
 }
 
 export async function processPendingEmails() {
@@ -72,31 +103,11 @@ export async function processPendingEmails() {
 
   console.log(`Found ${pendingEmails.length} pending emails`);
 
-  for (const email of pendingEmails) {
-    try {
-      await prisma.email.update({
-        where: {
-          id: email.id,
-        },
-        data: {
-          processingStatus: ProcessingStatus.PROCESSING,
-        },
-      });
+  for (let index = 0; index < pendingEmails.length; index += BATCH_SIZE) {
+    const batch = pendingEmails.slice(index, index + BATCH_SIZE);
 
-      await triageEmail(email.id);
-    } catch (error) {
-      console.error(`Failed processing email ${email.id}`, error);
+    console.log(`Processing batch ${index / BATCH_SIZE + 1}`);
 
-      await prisma.email.update({
-        where: {
-          id: email.id,
-        },
-        data: {
-          processingStatus: ProcessingStatus.FAILED,
-          processingError:
-            error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    }
+    await Promise.all(batch.map((email) => processSingleEmail(email.id)));
   }
 }

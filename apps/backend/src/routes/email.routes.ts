@@ -3,7 +3,8 @@ import { Router } from "express";
 import {
   getEmails,
   processEmails,
-  retryEmailProcessing,
+  retryFailedEmail,
+  processSingleEmail,
 } from "../controllers/email.controller";
 
 const router = Router();
@@ -12,6 +13,8 @@ router.get("/", getEmails);
 
 router.post("/process", processEmails);
 
-router.post("/:id/retry", retryEmailProcessing);
+router.post("/:id/process", processSingleEmail);
+
+router.post("/:id/retry", retryFailedEmail);
 
 export default router;

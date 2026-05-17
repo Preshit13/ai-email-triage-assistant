@@ -54,6 +54,18 @@ export async function processEmails() {
   return response.json();
 }
 
+export async function processSingleEmail(emailId: string) {
+  const response = await fetch(`${API_BASE_URL}/emails/${emailId}/process`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed processing email");
+  }
+
+  return response.json();
+}
+
 export async function retryEmail(emailId: string) {
   const response = await fetch(`${API_BASE_URL}/emails/${emailId}/retry`, {
     method: "POST",
