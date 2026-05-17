@@ -1,4 +1,5 @@
 import prisma from "../config/prisma";
+
 import { ProcessingStatus, ToolName } from "@prisma/client";
 
 import { classifyEmail } from "./groq.service";
@@ -25,22 +26,32 @@ export async function triageEmail(emailId: string) {
     "archive_no_action",
   ];
 
-  if (!validTools.includes(result.toolName)) {
-    throw new Error(`Invalid tool returned: ${result.toolName}`);
+  if (
+    !result.toolCalls ||
+    !Array.isArray(result.toolCalls) ||
+    result.toolCalls.length === 0
+  ) {
+    throw new Error("No tool calls returned");
   }
 
-  const toolName = result.toolName as ToolName;
+  for (const toolCall of result.toolCalls) {
+    if (!validTools.includes(toolCall.toolName)) {
+      throw new Error(`Invalid tool returned: ${toolCall.toolName}`);
+    }
 
-  await prisma.toolCall.create({
-    data: {
-      emailId: email.id,
-      toolName,
-      rationale: result.rationale,
-      argumentsJson: {
-        subject: email.subject,
+    const toolName = toolCall.toolName as ToolName;
+
+    await prisma.toolCall.create({
+      data: {
+        emailId: email.id,
+        toolName,
+        rationale: toolCall.rationale,
+        argumentsJson: toolCall.arguments || {},
       },
-    },
-  });
+    });
+
+    console.log(`AI selected ${toolName} for email: ${email.subject}`);
+  }
 
   await prisma.email.update({
     where: {
@@ -50,8 +61,6 @@ export async function triageEmail(emailId: string) {
       processingStatus: ProcessingStatus.COMPLETED,
     },
   });
-
-  console.log(`AI selected ${toolName} for email: ${email.subject}`);
 }
 
 export async function processPendingEmails() {

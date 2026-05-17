@@ -5,10 +5,14 @@ const groq = new Groq({
 });
 
 export async function classifyEmail(subject: string, body: string) {
+  const truncatedBody = body.slice(0, 4000);
+
   const prompt = `
 You are an AI email triage assistant.
 
-Analyze the email and decide the best action.
+Analyze the email carefully and decide which tools should be used.
+
+You may return MULTIPLE tools if needed.
 
 Available actions:
 - schedule_meeting
@@ -21,15 +25,28 @@ Available actions:
 Return ONLY valid JSON in this exact format:
 
 {
-  "toolName": "create_task",
-  "rationale": "Reason for choosing tool"
+  "toolCalls": [
+    {
+      "toolName": "create_task",
+      "rationale": "Reason for choosing tool",
+      "arguments": {
+        "subject": "Task subject"
+      }
+    }
+  ]
 }
+
+Rules:
+- Always return at least one tool call
+- Multiple tool calls are allowed
+- Return ONLY valid JSON
+- Do not include markdown
 
 Email Subject:
 ${subject}
 
 Email Body:
-${body}
+${truncatedBody}
 `;
 
   const completion = await groq.chat.completions.create({
@@ -58,7 +75,9 @@ ${body}
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
+
     console.log("RAW GROQ RESPONSE:", cleaned);
+
     return JSON.parse(cleaned);
   } catch (error) {
     console.error("Failed parsing Groq response:", content);

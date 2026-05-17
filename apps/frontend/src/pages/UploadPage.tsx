@@ -9,6 +9,8 @@ function UploadPage() {
 
   const [uploading, setUploading] = useState(false);
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const [uploadError, setUploadError] = useState("");
 
   const [missingColumns, setMissingColumns] = useState<string[]>([]);
@@ -17,13 +19,11 @@ function UploadPage() {
 
   const [insertedCount, setInsertedCount] = useState(0);
 
+  const [dragActive, setDragActive] = useState(false);
+
   const navigate = useNavigate();
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
+  function resetUploadState() {
     setUploadError("");
 
     setMissingColumns([]);
@@ -32,7 +32,45 @@ function UploadPage() {
 
     setInsertedCount(0);
 
+    setUploadProgress(0);
+  }
+
+  function handleSelectedFile(file: File) {
+    resetUploadState();
+
     setSelectedFile(file);
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    handleSelectedFile(file);
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+
+    setDragActive(true);
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+
+    setDragActive(false);
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+
+    setDragActive(false);
+
+    const file = event.dataTransfer.files?.[0];
+
+    if (!file) return;
+
+    handleSelectedFile(file);
   }
 
   async function handleContinue() {
@@ -45,16 +83,26 @@ function UploadPage() {
 
       setMissingColumns([]);
 
-      const response = await uploadCsv(selectedFile);
+      const response = await uploadCsv(selectedFile, (progress) => {
+        setUploadProgress(progress);
+      });
 
       setUploadSuccess(true);
 
-      setInsertedCount(response.insertedCount);
+      setInsertedCount(
+        (
+          response as {
+            insertedCount: number;
+          }
+        ).insertedCount,
+      );
     } catch (error) {
       console.error(error);
 
-      if (error instanceof Error) {
-        setUploadError(error.message);
+      if (typeof error === "object" && error !== null && "message" in error) {
+        setUploadError((error as { message: string }).message);
+      } else {
+        setUploadError("Upload failed");
       }
 
       if (
@@ -63,10 +111,12 @@ function UploadPage() {
         "missingColumns" in error
       ) {
         setMissingColumns(
-          (error as { missingColumns: string[] }).missingColumns,
+          (
+            error as {
+              missingColumns: string[];
+            }
+          ).missingColumns,
         );
-      } else {
-        setUploadError("Upload failed");
       }
     } finally {
       setUploading(false);
@@ -85,7 +135,18 @@ function UploadPage() {
           processing.
         </p>
 
-        <label className="border-2 border-dashed border-zinc-700 rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition">
+        <label
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer transition
+          ${
+            dragActive
+              ? "border-blue-500 bg-blue-500/10"
+              : "border-zinc-700 hover:border-blue-500"
+          }
+        `}
+        >
           <input
             type="file"
             accept=".csv"
@@ -93,7 +154,9 @@ function UploadPage() {
             onChange={handleFileChange}
           />
 
-          <p className="text-xl font-semibold mb-2">Click to upload CSV</p>
+          <p className="text-xl font-semibold mb-2">Drag & Drop CSV Here</p>
+
+          <p className="text-zinc-400 mb-2">or click to upload</p>
 
           <p className="text-zinc-500 text-sm">Supported format: .csv</p>
         </label>
@@ -103,6 +166,25 @@ function UploadPage() {
             <p className="text-sm text-zinc-400 mb-1">Selected File</p>
 
             <p className="font-semibold">{selectedFile.name}</p>
+          </div>
+        )}
+
+        {uploading && (
+          <div className="mt-6">
+            <div className="flex justify-between mb-2 text-sm text-zinc-400">
+              <span>Uploading CSV...</span>
+
+              <span>{uploadProgress}%</span>
+            </div>
+
+            <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-blue-500 h-full transition-all duration-200"
+                style={{
+                  width: `${uploadProgress}%`,
+                }}
+              />
+            </div>
           </div>
         )}
 

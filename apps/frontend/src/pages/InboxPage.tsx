@@ -5,6 +5,7 @@ import {
   processEmails,
   executeTools,
   executeSingleTool,
+  retryEmail,
 } from "../api/emailApi";
 
 import type { Email } from "../api/emailApi";
@@ -22,9 +23,25 @@ function InboxPage() {
 
   const [executingToolId, setExecutingToolId] = useState<string | null>(null);
 
+  const [retryingEmailId, setRetryingEmailId] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [selectedToolFilter, setSelectedToolFilter] = useState("ALL");
+
+  async function refreshEmails() {
+    const updatedEmails = await fetchEmails();
+
+    setEmails(updatedEmails.data);
+
+    if (selectedEmail) {
+      const refreshedSelectedEmail = updatedEmails.data.find(
+        (email) => email.id === selectedEmail.id,
+      );
+
+      setSelectedEmail(refreshedSelectedEmail || null);
+    }
+  }
 
   async function handleProcessEmails() {
     try {
@@ -32,17 +49,7 @@ function InboxPage() {
 
       await processEmails();
 
-      const updatedEmails = await fetchEmails();
-
-      setEmails(updatedEmails.data);
-
-      if (selectedEmail) {
-        const refreshedSelectedEmail = updatedEmails.data.find(
-          (email) => email.id === selectedEmail.id,
-        );
-
-        setSelectedEmail(refreshedSelectedEmail || null);
-      }
+      await refreshEmails();
     } catch (error) {
       console.error(error);
     } finally {
@@ -56,17 +63,7 @@ function InboxPage() {
 
       await executeTools();
 
-      const updatedEmails = await fetchEmails();
-
-      setEmails(updatedEmails.data);
-
-      if (selectedEmail) {
-        const refreshedSelectedEmail = updatedEmails.data.find(
-          (email) => email.id === selectedEmail.id,
-        );
-
-        setSelectedEmail(refreshedSelectedEmail || null);
-      }
+      await refreshEmails();
     } catch (error) {
       console.error(error);
     } finally {
@@ -80,21 +77,25 @@ function InboxPage() {
 
       await executeSingleTool(toolCallId);
 
-      const updatedEmails = await fetchEmails();
-
-      setEmails(updatedEmails.data);
-
-      if (selectedEmail) {
-        const refreshedSelectedEmail = updatedEmails.data.find(
-          (email) => email.id === selectedEmail.id,
-        );
-
-        setSelectedEmail(refreshedSelectedEmail || null);
-      }
+      await refreshEmails();
     } catch (error) {
       console.error(error);
     } finally {
       setExecutingToolId(null);
+    }
+  }
+
+  async function handleRetryEmail(emailId: string) {
+    try {
+      setRetryingEmailId(emailId);
+
+      await retryEmail(emailId);
+
+      await refreshEmails();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setRetryingEmailId(null);
     }
   }
 
@@ -199,6 +200,8 @@ function InboxPage() {
 
                 <th className="text-left px-6 py-4">Subject</th>
 
+                <th className="text-left px-6 py-4">Date</th>
+
                 <th className="text-left px-6 py-4">Status</th>
               </tr>
             </thead>
@@ -227,6 +230,12 @@ function InboxPage() {
                         ))}
                       </div>
                     )}
+                  </td>
+
+                  <td className="px-6 py-4 text-zinc-300">
+                    {new Date(email.date).toLocaleDateString("en-US", {
+                      timeZone: "UTC",
+                    })}
                   </td>
 
                   <td className="px-6 py-4">
@@ -292,7 +301,21 @@ function InboxPage() {
               <div>
                 <p className="text-zinc-400 mb-2">Status</p>
 
-                <p>{selectedEmail.processingStatus}</p>
+                <div className="flex items-center gap-4">
+                  <p>{selectedEmail.processingStatus}</p>
+
+                  {selectedEmail.processingStatus === "FAILED" && (
+                    <button
+                      onClick={() => handleRetryEmail(selectedEmail.id)}
+                      disabled={retryingEmailId === selectedEmail.id}
+                      className="bg-red-600 hover:bg-red-700 disabled:bg-red-900 disabled:cursor-not-allowed px-3 py-1 rounded-lg text-sm font-semibold transition"
+                    >
+                      {retryingEmailId === selectedEmail.id
+                        ? "Retrying..."
+                        : "Retry Processing"}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
