@@ -139,6 +139,18 @@ function InboxPage() {
   }, []);
 
   useEffect(() => {
+    if (selectedEmail) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [selectedEmail]);
+
+  useEffect(() => {
     const hasProcessingEmails = emails.some(
       (email) => email.processingStatus === "PROCESSING",
     );
@@ -472,8 +484,14 @@ function InboxPage() {
         )}
 
         {selectedEmail && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 overflow-y-auto z-50">
-            <div className="bg-zinc-900 p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative">
+          <div
+            className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 overflow-y-auto z-50"
+            onClick={() => setSelectedEmail(null)}
+          >
+            <div
+              className="bg-zinc-900 p-8 rounded-2xl max-w-3xl w-full border border-zinc-700 shadow-2xl max-h-[90vh] overflow-y-auto relative"
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
                 onClick={() => setSelectedEmail(null)}
                 className="absolute top-4 right-4 text-zinc-400 hover:text-white text-3xl"
