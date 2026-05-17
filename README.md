@@ -1,5 +1,13 @@
 # AI Email Triage Assistant
 
+# Live Demo
+
+Frontend:
+https://ai-email-triage-assistant-frontend.vercel.app
+
+Backend API:
+https://ai-email-triage-assistant.onrender.com
+
 ## Overview
 
 AI Email Triage Assistant is a full-stack AI orchestration platform that ingests email datasets from CSV files, classifies emails using an LLM-powered orchestration workflow, generates actionable tool recommendations, and executes mocked business actions.
