@@ -4,12 +4,12 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function classifyEmail(
-  subject: string,
-  body: string,
-) {
-  const truncatedBody =
-    body.slice(0, 4000);
+// Model is configurable so a retired model never requires a code change.
+// llama-3.3-70b-versatile was retired by Groq on Aug 16, 2026.
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+export async function classifyEmail(subject: string, body: string) {
+  const truncatedBody = body.slice(0, 4000);
 
   const prompt = `
 You are an AI email triage assistant.
@@ -54,81 +54,76 @@ ${truncatedBody}
 `;
 
   try {
-    const completion =
-      await groq.chat.completions.create({
-        model:
-          "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a structured email triage AI.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.2,
-      });
+    const completion = await groq.chat.completions.create({
+      model: GROQ_MODEL,
+      response_format: {
+        type: "json_object",
+      },
+      messages: [
+        {
+          role: "system",
+          content: "You are a structured email triage AI.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+    });
 
-    const content =
-      completion.choices[0]?.message
-        ?.content;
+    const content = completion.choices[0]?.message?.content;
 
     if (!content) {
-      throw new Error(
-        "Empty Groq response",
-      );
+      throw new Error("Empty Groq response");
     }
 
     try {
-      const cleaned = content
+      const stripped = content
         .replace(/```json/g, "")
         .replace(/```/g, "")
         .trim();
 
-      console.log(
-        "RAW GROQ RESPONSE:",
-        cleaned,
-      );
+      // Keep only the JSON object, in case the model adds extra text
+      const start = stripped.indexOf("{");
+      const end = stripped.lastIndexOf("}");
+      const cleaned =
+        start !== -1 && end > start ? stripped.slice(start, end + 1) : stripped;
+
+      console.log("RAW GROQ RESPONSE:", cleaned);
 
       return JSON.parse(cleaned);
     } catch (error) {
-      console.error(
-        "Failed parsing Groq response:",
-        content,
-      );
+      console.error("Failed parsing Groq response:", content);
 
-      throw new Error(
-        "Invalid JSON response from AI model",
-      );
+      throw new Error("Invalid JSON response from AI model");
     }
   } catch (error: any) {
-    console.error(
-      "Groq API Error:",
-      error,
-    );
+    console.error("Groq API Error:", error);
 
-    const errorMessage =
-      error?.message || "";
+    const errorMessage = error?.message || "";
 
     if (
       errorMessage.includes("429") ||
-      errorMessage.includes(
-        "rate_limit_exceeded",
-      ) ||
-      errorMessage.includes(
-        "Rate limit reached",
-      )
+      errorMessage.includes("rate_limit_exceeded") ||
+      errorMessage.includes("Rate limit reached")
+    ) {
+      throw new Error("Groq API rate limit reached. Please retry later.");
+    }
+
+    if (
+      errorMessage.includes("model_not_found") ||
+      errorMessage.includes("does not exist")
     ) {
       throw new Error(
-        "Groq API rate limit reached. Please retry later.",
+        `Groq model "${GROQ_MODEL}" is not available. Update GROQ_MODEL.`,
       );
     }
 
-    throw new Error(
-      "Failed communicating with Groq AI service",
-    );
+    if (errorMessage.includes("Invalid JSON response from AI model")) {
+      throw error;
+    }
+
+    throw new Error("Failed communicating with Groq AI service");
   }
 }
